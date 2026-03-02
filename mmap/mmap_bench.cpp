@@ -80,7 +80,11 @@ struct RunResult {
 };
 
 static RunResult run_mmap(const RunConfig& cfg) {
-    int fd = ::open(cfg.file_path.c_str(), O_RDWR);
+
+    bool is_write_workload = (cfg.workload == Workload::MixedRand);
+
+    int open_flags = is_write_workload ? O_RDWR : O_RDONLY;
+    int fd = ::open(cfg.file_path.c_str(), open_flags);
     if (fd < 0) { perror("open"); std::exit(1); }
 
     struct stat st{};
@@ -92,45 +96,62 @@ static RunResult run_mmap(const RunConfig& cfg) {
         std::exit(1);
     }
 
-    void* map = mmap(nullptr, fsz, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    int prot = is_write_workload ? (PROT_READ | PROT_WRITE) : PROT_READ;
+    int flags = is_write_workload ? MAP_SHARED : MAP_PRIVATE;
+
+    void* map = mmap(nullptr, fsz, prot, flags, fd, 0);
     if (map == MAP_FAILED) { perror("mmap"); std::exit(1); }
 
     const uint64_t num_blocks = fsz / cfg.block_size;
     const uint64_t num_ops = num_blocks;
     const uint64_t total_bytes = num_ops * cfg.block_size;
 
+    // Global deterministic offsets for RandRead / MixedRand
+    std::vector<uint64_t> offsets;
+    if (cfg.workload != Workload::SeqRead) {
+        offsets.resize(num_ops);
+        std::mt19937_64 rng(cfg.seed);
+        std::uniform_int_distribution<uint64_t> dist(0, num_blocks - 1);
+        for (uint64_t i = 0; i < num_ops; i++) offsets[i] = dist(rng);
+    }
+
+    // Global deterministic read/write decisions for MixedRand
+    std::vector<uint8_t> is_read_vec;
+    if (cfg.workload == Workload::MixedRand) {
+        is_read_vec.resize(num_ops);
+        std::mt19937_64 rng(cfg.seed);
+        std::bernoulli_distribution is_read(0.7);
+        for (uint64_t i = 0; i < num_ops; i++) is_read_vec[i] = static_cast<uint8_t>(is_read(rng));
+    }
+
     std::atomic<uint64_t> sink{0};
+    auto* base = static_cast<uint8_t*>(map);
 
     auto worker = [&](int tid) {
+
         uint64_t local_acc = 0;
 
-        uint64_t start = (num_ops * tid) / cfg.threads;
-        uint64_t end   = (num_ops * (tid + 1)) / cfg.threads;
-
-        std::mt19937_64 rng(cfg.seed + static_cast<uint64_t>(tid));
-        std::uniform_int_distribution<uint64_t> dist(0, num_blocks - 1);
-        std::bernoulli_distribution is_read(0.7);
-
-        auto* base = static_cast<uint8_t*>(map);
+        uint64_t start = (num_ops * static_cast<uint64_t>(tid)) / static_cast<uint64_t>(cfg.threads);
+        uint64_t end   = (num_ops * static_cast<uint64_t>(tid + 1)) / static_cast<uint64_t>(cfg.threads);
 
         for (uint64_t op = start; op < end; ++op) {
-            uint64_t block_index;
 
-            if (cfg.workload == Workload::SeqRead) {
-                block_index = op;
-            } else {
-                block_index = dist(rng);
-            }
+            uint64_t block_index;
+            if (cfg.workload == Workload::SeqRead) block_index = op;
+            else block_index = offsets[op];
 
             uint64_t off = block_index * cfg.block_size;
             uint8_t* ptr = base + off;
 
             if (cfg.workload == Workload::MixedRand) {
-                if (is_read(rng)) {
+
+                if (is_read_vec[op]) {
                     consume_bytes(ptr, cfg.block_size, local_acc);
                 } else {
-                    std::memset(ptr, 0xAB, 64);
+                    // Spec aligned: overwrite existing file with block_size bytes
+                    std::memset(ptr, 0xAB, cfg.block_size);
                 }
+
             } else {
                 consume_bytes(ptr, cfg.block_size, local_acc);
             }
@@ -144,9 +165,8 @@ static RunResult run_mmap(const RunConfig& cfg) {
     auto t0 = std::chrono::steady_clock::now();
 
     std::vector<std::thread> threads;
-    for (int i = 0; i < cfg.threads; i++) {
-        threads.emplace_back(worker, i);
-    }
+    threads.reserve(cfg.threads);
+    for (int i = 0; i < cfg.threads; i++) threads.emplace_back(worker, i);
     for (auto& th : threads) th.join();
 
     if (cfg.workload == Workload::MixedRand) {
