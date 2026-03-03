@@ -15,7 +15,7 @@
 #include <thread>
 #include <vector>
 
-enum class Workload { SeqRead, RandRead, MixedRand };
+enum class Workload { SeqRead, RandRead, SeqWrite, RandWrite, MixedRand };
 
 static inline uint64_t to_u64(const char* s) {
     return std::stoull(std::string(s));
@@ -24,6 +24,8 @@ static inline uint64_t to_u64(const char* s) {
 static Workload parse_workload(const std::string& w) {
     if (w == "seq_read") return Workload::SeqRead;
     if (w == "rand_read") return Workload::RandRead;
+    if (w == "seq_write") return Workload::SeqWrite;
+    if (w == "rand_write") return Workload::RandWrite;
     if (w == "mixed_rand") return Workload::MixedRand;
     std::cerr << "Unknown workload: " << w << "\n";
     std::exit(1);
@@ -81,7 +83,10 @@ struct RunResult {
 
 static RunResult run_mmap(const RunConfig& cfg) {
 
-    bool is_write_workload = (cfg.workload == Workload::MixedRand);
+    bool is_write_workload =
+        (cfg.workload == Workload::SeqWrite ||
+         cfg.workload == Workload::RandWrite ||
+         cfg.workload == Workload::MixedRand);
 
     int open_flags = is_write_workload ? O_RDWR : O_RDONLY;
     int fd = ::open(cfg.file_path.c_str(), open_flags);
@@ -106,9 +111,14 @@ static RunResult run_mmap(const RunConfig& cfg) {
     const uint64_t num_ops = num_blocks;
     const uint64_t total_bytes = num_ops * cfg.block_size;
 
-    // Global deterministic offsets for RandRead / MixedRand
+    // Global deterministic offsets for random workloads
     std::vector<uint64_t> offsets;
-    if (cfg.workload != Workload::SeqRead) {
+    bool needs_offsets =
+        (cfg.workload == Workload::RandRead ||
+         cfg.workload == Workload::RandWrite ||
+         cfg.workload == Workload::MixedRand);
+
+    if (needs_offsets) {
         offsets.resize(num_ops);
         std::mt19937_64 rng(cfg.seed);
         std::uniform_int_distribution<uint64_t> dist(0, num_blocks - 1);
@@ -137,21 +147,24 @@ static RunResult run_mmap(const RunConfig& cfg) {
         for (uint64_t op = start; op < end; ++op) {
 
             uint64_t block_index;
-            if (cfg.workload == Workload::SeqRead) block_index = op;
-            else block_index = offsets[op];
+
+            if (cfg.workload == Workload::SeqRead || cfg.workload == Workload::SeqWrite) {
+                block_index = op;
+            } else {
+                block_index = offsets[op];
+            }
 
             uint64_t off = block_index * cfg.block_size;
             uint8_t* ptr = base + off;
 
-            if (cfg.workload == Workload::MixedRand) {
-
+            if (cfg.workload == Workload::SeqWrite || cfg.workload == Workload::RandWrite) {
+                std::memset(ptr, 0xAB, cfg.block_size);
+            } else if (cfg.workload == Workload::MixedRand) {
                 if (is_read_vec[op]) {
                     consume_bytes(ptr, cfg.block_size, local_acc);
                 } else {
-                    // Spec aligned: overwrite existing file with block_size bytes
                     std::memset(ptr, 0xAB, cfg.block_size);
                 }
-
             } else {
                 consume_bytes(ptr, cfg.block_size, local_acc);
             }
@@ -169,7 +182,8 @@ static RunResult run_mmap(const RunConfig& cfg) {
     for (int i = 0; i < cfg.threads; i++) threads.emplace_back(worker, i);
     for (auto& th : threads) th.join();
 
-    if (cfg.workload == Workload::MixedRand) {
+    // For write workloads, flush changes
+    if (is_write_workload) {
         if (msync(map, fsz, MS_SYNC) != 0) perror("msync");
     }
 

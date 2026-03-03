@@ -5,17 +5,16 @@ cd "$(dirname "$0")/.."
 
 OUT="results/mmap_common_2g.csv"
 SEED=42
-
 FILE="/mnt/bench/files/small_2G.bin"
 
-WORKLOADS=("seq_read" "rand_read" "mixed_rand")
+WORKLOADS=("seq_read" "rand_read" "seq_write" "rand_write" "mixed_rand")
 BLOCKS=(4096 16384 65536 262144 1048576)
 THREADS=(1 4 8)
 REPS=(1 2 3 4 5)
 
 mkdir -p results
 
-# Start fresh each time (so it's clean and comparable)
+# Start fresh each time
 echo "interface,workload,cache_state,file_size_bytes,block_size_bytes,threads,qd,seed,repetition,wall_seconds,total_bytes,throughput_MBps,latency_us_per_op,cpu_user_seconds,cpu_sys_seconds,Minor_faults,major_faults,voluntary_ctx,involuntary_ctx" > "$OUT"
 
 for W in "${WORKLOADS[@]}"; do
@@ -28,7 +27,10 @@ for W in "${WORKLOADS[@]}"; do
         ./mmap/mmap_bench "$FILE" "$W" cold "$B" "$T" "$SEED" "$REP" "$OUT"
 
         echo "RUN file=$FILE workload=$W block=$B threads=$T rep=$REP (warm)"
-	dd if="$FILE" of=/dev/null bs=64M status=none
+        # Prime only for read workloads to guarantee warm page-cache
+        if [[ "$W" == *read* ]]; then
+          dd if="$FILE" of=/dev/null bs=64M status=none
+        fi
         ./mmap/mmap_bench "$FILE" "$W" warm "$B" "$T" "$SEED" "$REP" "$OUT"
 
       done
@@ -38,4 +40,4 @@ done
 
 echo "DONE. Lines:"
 wc -l "$OUT"
-echo "CSV saved to: $OUT""
+echo "CSV saved to: $OUT"
