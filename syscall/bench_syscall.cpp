@@ -323,6 +323,10 @@ int main(int argc, char **argv) {
 
   if (a.do_create) {
     ensure_file(a.file_path, a.file_size, a.block_size);
+    std::cerr << "Created file: " << a.file_path
+              << " size=" << a.file_size
+              << " block=" << a.block_size << "\n";
+    return 0;
   } else {
     if (!file_exists(a.file_path)) {
       std::cerr << "File not found. Use --create first.\n";
