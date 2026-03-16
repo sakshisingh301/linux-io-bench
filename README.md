@@ -28,28 +28,25 @@ and latency across interfaces.
 
 ## Folder Descriptions
 
-### `syscall/`
+**`syscall/`**
 
 Contains the benchmark implementation using **traditional system call
 I/O**
 
-### `mmap/`
+**`mmap/`**
 
 Contains the benchmark implementation using **memory-mapped file I/O**
 
-### `io_uring/`
+**`io_uring/`**
 
 Contains the benchmark implementation using **asynchronous I/O with
 io_uring**
 
-------------------------------------------------------------------------
-
-### `results/`
+**`results/`**
 
 Stores the **CSV output files produced by the benchmarks**.
 
 Files:
-
 -   `syscall_results.csv`
 -   `mmap_results.csv`
 -   `io_uring_results.csv`
@@ -57,19 +54,17 @@ Files:
 These files contain metrics such as throughput, latency, CPU usage, page
 faults, and context switches.
 
-------------------------------------------------------------------------
-
-### `graphs/`
+**`graphs/`**
 
 Contains Python scripts used to generate graphs and visualizations from
 benchmark results.
 
-#### `main_graphs/`
+-   **`main_graphs/`**
 
 Contains plots and script used to generate the **primary graphs included in the
 project report**
 
-#### `extra_graphs/`
+-   **`extra_graphs/`**
 
 Contains **additional exploratory graphs** that
 provide deeper insight into system behavior but are not required for the
@@ -81,16 +76,16 @@ main report
 
 Each benchmark run records the following metrics:
 
-  Metric              Description
-  ------------------- -----------------------------------
-  throughput_MBps     Data processed per second
-  latency_us_per_op   Average latency per I/O operation
-  cpu_user_seconds    CPU time spent in user mode
-  cpu_sys_seconds     CPU time spent in kernel mode
-  minor_faults        Minor page faults
-  major_faults        Major page faults
-  voluntary_ctx       Voluntary context switches
-  involuntary_ctx     Involuntary context switches
+| Metric | Description |
+|------|-------------|
+| throughput_MBps | Data processed per second |
+| latency_us_per_op | Average latency per I/O operation |
+| cpu_user_seconds | CPU time spent in user mode |
+| cpu_sys_seconds | CPU time spent in kernel mode |
+| minor_faults | Minor page faults |
+| major_faults | Major page faults |
+| voluntary_ctx | Voluntary context switches |
+| involuntary_ctx | Involuntary context switches |
 
 ------------------------------------------------------------------------
 
@@ -107,19 +102,16 @@ The benchmarks evaluate several I/O workloads:
 Each workload is tested with different parameters:
 
 **Block Sizes**
-
 -   4 KB
 -   64 KB
 -   1 MB
 
 **Thread Counts**
-
 -   1
 -   4
 -   8
 
 **Cache States**
-
 -   Warm cache
 -   Cold cache
 
