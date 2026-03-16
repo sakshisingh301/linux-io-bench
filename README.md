@@ -26,29 +26,25 @@ and latency across interfaces.
 
 ------------------------------------------------------------------------
 
-# Folder Descriptions
+## Folder Descriptions
 
-## `syscall/`
+### `syscall/`
 
 Contains the benchmark implementation using **traditional system call
 I/O**
 
-------------------------------------------------------------------------
-
-## `mmap/`
+### `mmap/`
 
 Contains the benchmark implementation using **memory-mapped file I/O**
 
-------------------------------------------------------------------------
-
-## `io_uring/`
+### `io_uring/`
 
 Contains the benchmark implementation using **asynchronous I/O with
 io_uring**
 
 ------------------------------------------------------------------------
 
-## `results/`
+### `results/`
 
 Stores the **CSV output files produced by the benchmarks**.
 
@@ -63,17 +59,17 @@ faults, and context switches.
 
 ------------------------------------------------------------------------
 
-## `graphs/`
+### `graphs/`
 
 Contains Python scripts used to generate graphs and visualizations from
 benchmark results.
 
-### `main_graphs/`
+#### `main_graphs/`
 
 Contains plots and script used to generate the **primary graphs included in the
 project report**
 
-### `extra_graphs/`
+#### `extra_graphs/`
 
 Contains **additional exploratory graphs** that
 provide deeper insight into system behavior but are not required for the
@@ -81,7 +77,7 @@ main report
 
 ------------------------------------------------------------------------
 
-# Metrics Collected
+## Metrics Collected
 
 Each benchmark run records the following metrics:
 
@@ -98,7 +94,7 @@ Each benchmark run records the following metrics:
 
 ------------------------------------------------------------------------
 
-# Workloads Tested
+## Workloads Tested
 
 The benchmarks evaluate several I/O workloads:
 
@@ -129,13 +125,13 @@ Each workload is tested with different parameters:
 
 ------------------------------------------------------------------------
 
-# Requirements
+## Requirements
 
-## C++ Compiler
+### C++ Compiler
 
 g++
 
-## Python Libraries
+### Python Libraries
 
 -   pandas
 -   matplotlib
@@ -147,7 +143,7 @@ pip install pandas matplotlib seaborn
 
 ------------------------------------------------------------------------
 
-# Running the Benchmarks
+## Running the Benchmarks
 
 Compile a benchmark implementation:
 
@@ -158,7 +154,7 @@ directory.
 
 ------------------------------------------------------------------------
 
-# Generating Graphs
+## Generating Graphs
 
 Generate graphs using:
 
