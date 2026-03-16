@@ -105,7 +105,7 @@ struct Args {
   uint32_t block_size = 4096;
 
   int threads = 1;
-  uint32_t qd = 1; // unused for syscall; still recorded
+  uint32_t qd = 1; // unused for syscall
   uint32_t seed = 42;
   int repetition = 0;
 
@@ -273,7 +273,6 @@ static RunResult run_syscall(const Args &a) {
 }
 
 static void append_csv_row(const Args &a, const RunResult &r) {
-  // CSV header (only if file doesn't exist)
   bool new_file = !file_exists(a.out_csv);
   FILE *f = fopen(a.out_csv.c_str(), "a");
   if (!f) { perror("fopen(out)"); exit(1); }
